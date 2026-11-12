@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignalPulse AI | Institutional FX & SMC Signal Terminal</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter & JetBrains Mono Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for crisp trading icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        terminal: {
+                            bg: '#080b11',
+                            panel: '#0e131d',
+                            card: '#131926',
+                            border: '#1e2738',
+                            hover: '#192132',
+                            accent: '#00e5ff',
+                            bull: '#00e676',
+                            bear: '#ff3d71',
+                            warn: '#ffab00'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar for Institutional Dark Theme */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #080b11;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e2738;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #2e3b54;
+        }
+
+        /* Subtle Pulse & Flash Animations for Live Ticks */
+        @keyframes flashGreen {
+            0% { background-color: rgba(0, 230, 118, 0.25); }
+            100% { background-color: transparent; }
+        }
+        @keyframes flashRed {
+            0% { background-color: rgba(255, 61, 113, 0.25); }
+            100% { background-color: transparent; }
+        }
+        .tick-up {
+            animation: flashGreen 0.6s ease-out;
+        }
+        .tick-down {
+            animation: flashRed 0.6s ease-out;
+        }
+
+        /* Radar Scanning Animation */
+        @keyframes scanLine {
+            0% { transform: translateY(-100%); opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { transform: translateY(400%); opacity: 0; }
+        }
+        .scanner-beam {
+            animation: scanLine 1.8s linear infinite;
+        }
+
+        body {
+            background-color: #080b11;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
+
+    <!-- Top Institutional Disclaimer & Live Status Ribbon -->
+    <div class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-1.5 text-xs flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2 text-amber-300/90">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+            <span>
+                <strong>MARKET FEED NOTICE:</strong> Real-time institutional signals require live broker/liquidity API feeds (e.g., Twelve Data / OANDA). 
+                <span id="feedStatusBadge" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono text-[11px] ml-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span> SIMULATED LIVE TICKS ACTIVE
+                </span>
+            </span>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="openSettingsModal()" class="text-cyan-400 hover:text-cyan-300 underline font-medium flex items-center gap-1 transition">
+                <i class="fa-solid fa-plug"></i> Connect Live API Key
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Navigation Header -->
+    <header class="bg-terminal-panel border-b border-terminal-border px-4 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30">
+        <!-- Brand Logo -->
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <i class="fa-solid fa-wave-square text-slate-950 text-lg"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="font-bold text-lg tracking-tight text-white">SignalPulse <span class="text-cyan-400">AI</span></h1>
+                    <span class="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">SMC v4.2</span>
+                </div>
+                <p class="text-[11px] text-slate-400">Institutional Liquidity & Algorithmic Confluence Engine</p>
+            </div>
+        </div>
+
+        <!-- Global Market Session & Server Clock -->
+        <div class="hidden lg:flex items-center gap-6 text-xs">
+            <div class="flex items-center gap-4 bg-terminal-card px-3 py-1.5 rounded-lg border border-terminal-border">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span class="text-slate-400">LONDON:</span>
+                    <span class="text-emerald-400 font-mono font-semibold">ACTIVE</span>
+                </div>
+                <span class="text-slate-700">|</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span class="text-slate-400">NEW YORK:</span>
+                    <span class="text-emerald-400 font-mono font-semibold">OVERLAP</span>
+                </div>
+                <span class="text-slate-700">|</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+                    <span class="text-slate-400">TOKYO:</span>
+                    <span class="text-slate-500 font-mono">CLOSED</span>
+                </div>
+            </div>
+            <div class="font-mono text-slate-300 bg-terminal-card px-3 py-1.5 rounded-lg border border-terminal-border">
+                <i class="fa-regular fa-clock text-cyan-400 mr-1.5"></i>
+                <span id="utcClock">00:00:00 UTC</span>
+            </div>
+        </div>
+
+        <!-- Primary Action Buttons -->
+        <div class="flex items-center gap-2.5">
+            <button onclick="scanAllPairs()" id="scanAllBtn" class="px-3.5 py-2 rounded-lg bg-terminal-card hover:bg-terminal-hover text-slate-200 border border-terminal-border text-xs font-semibold flex items-center gap-2 transition">
+                <i class="fa-solid fa-radar text-cyan-400"></i>
+                <span>Scan All Pairs</span>
+            </button>
+            <button onclick="triggerDeepAIScan()" id="scanCurrentBtn" class="px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition transform active:scale-95">
+                <i class="fa-solid fa-microchip"></i>
+                <span>Scan Pair Now</span>
+            </button>
+            <button onclick="openSettingsModal()" class="p-2 rounded-lg bg-terminal-card hover:bg-terminal-hover border border-terminal-border text-slate-300 transition" title="API & Feed Settings">
+                <i class="fa-solid fa-sliders"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main 3-Column Institutional Terminal Grid -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 p-3 max-w-[1920px] w-full mx-auto">
+
+        <!-- LEFT COLUMN: Watchlist & Currency Strength Heatmap (3 Cols on Desktop) -->
+        <aside class="lg:col-span-3 flex flex-col gap-3">
+            
+            <!-- Live Watchlist Panel -->
+            <section class="bg-terminal-panel border border-terminal-border rounded-xl overflow-hidden flex flex-col">
+                <div class="px-3.5 py-2.5 border-b border-terminal-border flex items-center justify-between bg-terminal-card/50">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-cyan-400 text-xs"></i>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Live Pairs & Liquidity</h2>
+                    </div>
+                    <span class="text-[10px] font-mono text-slate-400">SPREAD / BID-ASK</span>
+                </div>
+                <div id="watchlistContainer" class="divide-y divide-terminal-border/60 max-h-[370px] overflow-y-auto">
+                    <!-- Populated dynamically by JS -->
+                </div>
+            </section>
+
+            <!-- Currency Strength Heatmap -->
+            <section class="bg-terminal-panel border border-terminal-border rounded-xl p-3.5 flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-fire text-amber-400 text-xs"></i>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Currency Strength Matrix</h2>
+                    </div>
+                    <span class="text-[10px] font-mono text-slate-400">RELATIVE %</span>
+                </div>
+                <div id="strengthMatrix" class="space-y-2">
+                    <!-- Strength bars populated dynamically -->
+                </div>
+                <div class="pt-2 border-t border-terminal-border/60 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>Strongest Pair Bias:</span>
+                    <span id="strongestPairBias" class="font-mono font-bold text-emerald-400">XAU/USD (+1.42%)</span>
+                </div>
+            </section>
+
+            <!-- Position Size & Risk Calculator -->
+            <section class="bg-terminal-panel border border-terminal-border rounded-xl p-3.5 flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-calculator text-cyan-400 text-xs"></i>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Risk & Lot Calculator</h2>
+                    </div>
+                    <button onclick="syncCalcWithActiveSignal()" class="text-[10px] text-cyan-400 hover:underline font-medium">
+                        Sync Signal SL
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Balance ($)</label>
+                        <input type="number" id="calcBalance" value="10000" min="10" step="100" oninput="calculatePositionSize()"
+                            class="w-full bg-terminal-card border border-terminal-border rounded-lg px-2.5 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Risk (%)</label>
+                        <input type="number" id="calcRiskPercent" value="1.0" min="0.1" max="100" step="0.1" oninput="calculatePositionSize()"
+                            class="w-full bg-terminal-card border border-terminal-border rounded-lg px-2.5 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">SL (Pips)</label>
+                        <input type="number" id="calcStopPips" value="25" min="1" step="1" oninput="calculatePositionSize()"
+                            class="w-full bg-terminal-card border border-terminal-border rounded-lg px-2.5 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 bg-terminal-card p-2.5 rounded-lg border border-terminal-border">
+                    <div>
+                        <span class="block text-[10px] text-slate-400">Recommended Lot Size</span>
+                        <span id="calcLotResult" class="text-base font-mono font-bold text-cyan-400">0.40 Lots</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="block text-[10px] text-slate-400">Capital at Risk</span>
+                        <span id="calcDollarRisk" class="text-base font-mono font-bold text-rose-400">$100.00</span>
+                    </div>
+                </div>
+            </section>
+        </aside>
+
+        <!-- CENTER COLUMN: Interactive Candlestick Chart & Live Signal Feed Ticker (6 Cols on Desktop) -->
+        <div class="lg:col-span-6 flex flex-col gap-3">
+            
+            <!-- Chart Header & Timeframe Selector -->
+            <section class="bg-terminal-panel border border-terminal-border rounded-xl flex flex-col overflow-hidden">
+                <div class="px-4 py-3 border-b border-terminal-border flex flex-wrap items-center justify-between gap-3 bg-terminal-card/40">
+                    <div class="flex items-center gap-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 id="chartPairTitle" class="text-base font-bold text-white font-mono">EUR/USD</h2>
+                                <span id="chartPairName" class="text-xs text-slate-400 hidden sm:inline">Euro / US Dollar</span>
+                            </div>
+                            <div class="flex items-center gap-3 mt-0.5">
+                                <span id="chartLivePrice" class="text-sm font-mono font-bold text-emerald-400">1.08420</span>
+                                <span id="chartPriceChange" class="text-xs font-mono text-emerald-400">+0.18%</span>
+                                <span class="text-[11px] font-mono text-slate-500">Spread: <span id="chartSpread" class="text-slate-300">0.8</span> pips</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Timeframes & Overlay Toggles -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex items-center bg-terminal-card p-1 rounded-lg border border-terminal-border" id="timeframeButtons">
+                            <button onclick="setTimeframe('M15')" data-tf="M15" class="tf-btn px-2.5 py-1 rounded text-xs font-mono font-semibold text-slate-400 hover:text-white transition">M15</button>
+                            <button onclick="setTimeframe('H1')" data-tf="H1" class="tf-btn px-2.5 py-1 rounded text-xs font-mono font-semibold bg-cyan-500 text-slate-950 transition">H1</button>
+                            <button onclick="setTimeframe('H4')" data-tf="H4" class="tf-btn px-2.5 py-1 rounded text-xs font-mono font-semibold text-slate-400 hover:text-white transition">H4</button>
+                            <button onclick="setTimeframe('D1')" data-tf="D1" class="tf-btn px-2.5 py-1 rounded text-xs font-mono font-semibold text-slate-400 hover:text-white transition">D1</button>
+                        </div>
+
+                        <button onclick="toggleSMCOverlays()" id="smcToggleBtn" class="px-2.5 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-xs font-medium flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-eye"></i>
+                            <span>SMC Zones</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Interactive HTML5 Canvas Chart Container -->
+                <div class="relative w-full h-[360px] sm:h-[410px] bg-[#090d14] select-none" id="chartContainer">
+                    <canvas id="tradingChart" class="w-full h-full block cursor-crosshair"></canvas>
+                    
+                    <!-- Floating OHLCV Legend -->
+                    <div id="ohlcLegend" class="absolute top-2.5 left-3 pointer-events-none flex flex-wrap items-center gap-3 text-[11px] font-mono bg-terminal-panel/85 backdrop-blur-sm px-2.5 py-1 rounded border border-terminal-border/80">
+                        <span class="text-slate-400">O: <span id="legO" class="text-slate-200">-</span></span>
+                        <span class="text-slate-400">H: <span id="legH" class="text-emerald-400">-</span></span>
+                        <span class="text-slate-400">L: <span id="legL" class="text-rose-400">-</span></span>
+                        <span class="text-slate-400">C: <span id="legC" class="text-slate-200">-</span></span>
+                        <span class="text-cyan-400">EMA20/50</span>
+                    </div>
+
+                    <!-- AI Scanning Overlay Effect (Hidden until triggered) -->
+                    <div id="chartScanOverlay" class="hidden absolute inset-0 bg-cyan-950/30 backdrop-blur-[1px] pointer-events-none overflow-hidden flex items-center justify-center">
+                        <div class="scanner-beam w-full h-16 bg-gradient-to-b from-transparent via-cyan-400/30 to-transparent absolute top-0"></div>
+                        <div class="bg-terminal-panel/95 border border-cyan-400/50 px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-3">
+                            <i class="fa-solid fa-circle-notch fa-spin text-cyan-400 text-lg"></i>
+                            <div>
+                                <div class="text-xs font-bold text-white">ANALYZING MARKET STRUCTURE...</div>
+                                <div class="text-[10px] font-mono text-cyan-300">Detecting Order Blocks, FVG & Liquidity Sweeps</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Technical Indicators Mini Strip -->
+                <div class="px-4 py-2 bg-terminal-card/60 border-t border-terminal-border grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono">
+                    <div class="flex items-center justify-between sm:justify-start sm:gap-2">
+                        <span class="text-slate-400">RSI (14):</span>
+                        <span id="indRSI" class="font-bold text-cyan-400">54.2</span>
+                    </div>
+                    <div class="flex items-center justify-between sm:justify-start sm:gap-2">
+                        <span class="text-slate-400">STRUCTURE:</span>
+                        <span id="indStructure" class="font-bold text-emerald-400">BULLISH BOS</span>
+                    </div>
+                    <div class="flex items-center justify-between sm:justify-start sm:gap-2">
+                        <span class="text-slate-400">EMA CROSS:</span>
+                        <span id="indEMA" class="font-bold text-emerald-400">GOLDEN (20>50)</span>
+                    </div>
+                    <div class="flex items-center justify-between sm:justify-start sm:gap-2">
+                        <span class="text-slate-400">LIQUIDITY:</span>
+                        <span id="indLiquidity" class="font-bold text-amber-400">SSL SWEPT</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Live Signal Feed Ticker & Execution Log -->
+            <section class="bg-terminal-panel border border-terminal-border rounded-xl flex flex-col flex-1 overflow-hidden">
+                <div class="px-4 py-2.5 border-b border-terminal-border flex items-center justify-between bg-terminal-card/50">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Live Institutional Signal Feed</h2>
+                    </div>
+                    <span class="text-[11px] font-mono text-slate-400" id="signalCountBadge">7 Active Setups</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-terminal-border text-[10px] font-mono uppercase text-slate-400 bg-terminal-card/30">
+                                <th class="py-2 px-3">Pair / TF</th>
+                                <th class="py-2 px-3">Signal</th>
+                                <th class="py-2 px-3">Entry Zone</th>
+                                <th class="py-2 px-3">SL / TP1</th>
+                                <th class="py-2 px-3">Conf.</th>
+                                <th class="py-2 px-3 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signalFeedBody" class="divide-y divide-terminal-border/60 text-xs font-mono">
+                            <!-- Populated dynamically by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- RIGHT COLUMN: AI Signal Generator & Market Brain Panel (3 Cols on Desktop) -->
+        <aside class="lg:col-span-3 flex flex-col gap-3">
+            
+            <!-- AI Market Brain Signal Card -->
+            <section class="bg-terminal-panel border border-terminal-border rounded-xl p-4 flex flex-col gap-3.5 relative overflow-hidden">
+                <!-- Top Glow Accent -->
+                <div id="aiCardTopGlow" class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500"></div>
+
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                            <i class="fa-solid fa-brain text-xs"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-white">AI Market Brain</h2>
+                            <span id="aiTimestamp" class="text-[10px] font-mono text-slate-400">Updated just now</span>
+                        </div>
+                    </div>
+                    <span id="aiTimeframeBadge" class="px-2 py-0.5 rounded bg-terminal-card border border-terminal-border font-mono text-xs font-bold text-cyan-400">H1</span>
+                </div>
+
+                <!-- Primary Signal Action Banner -->
+                <div id="aiActionBanner" class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">Algorithmic Order</span>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span id="aiSignalAction" class="text-xl font-black tracking-tight text-emerald-400">BUY LIMIT</span>
+                            <span id="aiSignalPair" class="text-sm font-mono font-bold text-white">EUR/USD</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] font-mono uppercase text-slate-400 block">AI Confidence</span>
+                        <span id="aiConfidenceScore" class="text-xl font-mono font-extrabold text-emerald-400">89%</span>
+                    </div>
+                </div>
+
+                <!-- Confidence Progress Bar -->
+                <div class="w-full bg-terminal-card h-1.5 rounded-full overflow-hidden">
+                    <div id="aiConfidenceBar" class="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full transition-all duration-500" style="width: 89%"></div>
+                </div>
+
+                <!-- Trade Execution Levels Grid -->
+                <div class="space-y-2 font-mono text-xs">
+                    <div class="flex items-center justify-between p-2.5 rounded-lg bg-terminal-card border border-terminal-border">
+                        <span class="text-slate-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-crosshairs text-cyan-400"></i> Entry Zone
+                        </span>
+                        <span id="aiEntryZone" class="font-bold text-white">1.08350 - 1.08410</span>
+                    </div>
+
+                    <div class="flex items-center justify-between p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/25">
+                        <span class="text-rose-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-shield-halved text-rose-400"></i> Stop Loss (SL)
+                        </span>
+                        <div class="text-right">
+                            <span id="aiStopLoss" class="font-bold text-rose-400">1.08120</span>
+                            <span id="aiSLPips" class="text-[10px] text-rose-300/80 block">-26 pips</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25">
+                        <span class="text-emerald-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-bullseye text-emerald-400"></i> Take Profit 1
+                        </span>
+                        <div class="text-right">
+                            <span id="aiTP1" class="font-bold text-emerald-400">1.08850</span>
+                            <span id="aiTP1Pips" class="text-[10px] text-emerald-300/80 block">+47 pips (1:1.8)</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25">
+                        <span class="text-emerald-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-trophy text-amber-400"></i> Take Profit 2
+                        </span>
+                        <div class="text-right">
+                            <span id="aiTP2" class="font-bold text-emerald-400">1.09320</span>
+                            <span id="aiTP2Pips" class="text-[10px] text-emerald-300/80 block">+94 pips (1:3.6)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk-to-Reward & Confluence Summary -->
+                <div class="grid grid-cols-2 gap-2 text-center font-mono">
+                    <div class="bg-terminal-card border border-terminal-border rounded-lg p-2">
+                        <span class="text-[10px] text-slate-400 block">RISK : REWARD</span>
+                        <span id="aiRiskReward" class="text-sm font-bold text-cyan-400">1 : 3.6</span>
+                    </div>
+                    <div class="bg-terminal-card border border-terminal-border rounded-lg p-2">
+                        <span class="text-[10px] text-slate-400 block">SETUP GRADE</span>
+                        <span id="aiSetupGrade" class="text-sm font-bold text-amber-400">A+ INSTITUTIONAL</span>
+                    </div>
+                </div>
+
+                <!-- Detailed AI Reasoning & SMC Confluence Bullets -->
+                <div class="bg-terminal-card/80 border border-terminal-border rounded-xl p-3">
+                    <h3 class="text-[11px] font-bold uppercase tracking-wider text-cyan-400 mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-list-check"></i> SMC & Technical Confluence
+                    </h3>
+                    <ul id="aiReasoningList" class="space-y-2 text-xs text-slate-300 leading-relaxed">
+                        <!-- Reasoning bullets injected dynamically -->
+                    </ul>
+                </div>
+
+                <!-- Copy Setup CTA -->
+                <button onclick="copyActiveSignalSetup()" class="w-full py-2.5 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 transition transform active:scale-95">
+                    <i class="fa-regular fa-copy"></i>
+                    <span>Copy Trade Setup to Clipboard</span>
+                </button>
+            </section>
+        </aside>
+    </main>
+
+    <!-- Settings & Live API Key Modal -->
+    <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-terminal-panel border border-terminal-border rounded-2xl max-w-md w-full p-5 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-terminal-border">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-satellite-dish text-cyan-400"></i>
+                    <h3 class="font-bold text-white text-sm">Live Market Data Feed Configuration</h3>
+                </div>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="py-4 space-y-4 text-xs text-slate-300">
+                <p class="leading-relaxed text-slate-400">
+                    By default, <strong class="text-white">SignalPulse AI</strong> runs an institutional-grade Brownian tick simulator calibrated to realistic interbank spreads and volatility so you can test setups immediately.
+                </p>
+
+                <div class="bg-terminal-card p-3 rounded-xl border border-terminal-border space-y-2.5">
+                    <label class="block font-semibold text-white">Twelve Data API Key (Optional Live Feed)</label>
+                    <input type="text" id="twelveDataApiKeyInput" placeholder="Enter your TwelveData API Key..." 
+                        class="w-full bg-terminal-bg border border-terminal-border rounded-lg px-3 py-2 font-mono text-xs text-cyan-300 focus:outline-none focus:border-cyan-400">
+                    <p class="text-[11px] text-slate-400">
+                        Get a free key at <span class="text-cyan-400">twelvedata.com</span> to stream real-time Forex & XAU/USD quotes directly into the terminal.
+                    </p>
+                </div>
+
+                <div class="flex items-center justify-between bg-terminal-card p-3 rounded-xl border border-terminal-border">
+                    <div>
+                        <span class="font-semibold text-white block">Data Mode</span>
+                        <span id="modalCurrentModeText" class="text-[11px] text-cyan-400 font-mono">Simulated Institutional Stream</span>
+                    </div>
+                    <button onclick="resetToSimulatedFeed()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium">
+                        Use Simulator
+                    </button>
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-terminal-border flex items-center justify-end gap-2">
+                <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-lg bg-terminal-card hover:bg-terminal-hover text-slate-300 text-xs font-medium">
+                    Cancel
+                </button>
+                <button onclick="saveApiSettings()" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs">
+                    Save & Connect Feed
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Non-Blocking Toast Notification -->
+    <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Main Application Logic -->
+    <script>
+        /**
+         * ============================================================================
+         * SIGNALPULSE AI — INSTITUTIONAL FX & SMC SIGNAL TERMINAL
+         * Architecture:
+         * 1. Market State & Currency Instruments Registry (Majors, Gold, USD/UGX)
+         * 2. Realistic OHLCV Historical Generator + Live Micro-Tick Engine
+         * 3. Technical Indicator & Smart Money Concepts (SMC) Confluence Analyzer
+         * 4. High-DPI HTML5 Canvas Candlestick Chart Renderer with SMC Overlays
+         * 5. Interactive UI Controllers, Copy Setup & Risk Calculator
+         * ============================================================================
+         */
+
+        // --- 1. CURRENCY INSTRUMENTS CONFIGURATION ---
+        const INSTRUMENTS = {
+            'EUR/USD': {
+                name: 'Euro / US Dollar',
+                price: 1.08420,
+                decimals: 5,
+                pipSize: 0.0001,
+                pipValuePerLot: 10,
+                spread: 0.8,
+                volatility: 0.00018,
+                dailyChange: 0.18
+            },
+            'GBP/USD': {
+                name: 'British Pound / US Dollar',
+                price: 1.26850,
+                decimals: 5,
+                pipSize: 0.0001,
+                pipValuePerLot: 10,
+                spread: 1.1,
+                volatility: 0.00024,
+                dailyChange: 0.31
+            },
+            'USD/JPY': {
+                name: 'US Dollar / Japanese Yen',
+                price: 153.420,
+                decimals: 3,
+                pipSize: 0.01,
+                pipValuePerLot: 6.52,
+                spread: 0.9,
+                volatility: 0.025,
+                dailyChange: -0.24
+            },
+            'XAU/USD': {
+                name: 'Gold Spot / US Dollar',
+                price: 2742.50,
+                decimals: 2,
+                pipSize: 0.10,
+                pipValuePerLot: 10,
+                spread: 1.8,
+                volatility: 0.65,
+                dailyChange: 1.42
+            },
+            'USD/UGX': {
+                name: 'US Dollar / Ugandan Shilling',
+                price: 3675.00,
+                decimals: 2,
+                pipSize: 1.00,
+                pipValuePerLot: 2.72,
+                spread: 12.0,
+                volatility: 1.35,
+                dailyChange: -0.15
+            },
+            'AUD/USD': {
+                name: 'Australian Dollar / US Dollar',
+                price: 0.65480,
+                decimals: 5,
+                pipSize: 0.0001,
+                pipValuePerLot: 10,
+                spread: 1.0,
+                volatility: 0.00016,
+                dailyChange: 0.12
+            },
+            'USD/CAD': {
+                name: 'US Dollar / Canadian Dollar',
+                price: 1.39150,
+                decimals: 5,
+                pipSize: 0.0001,
+                pipValuePerLot: 7.18,
+                spread: 1.2,
+                volatility: 0.00019,
+                dailyChange: -0.09
+            }
+        };
+
+        const CURRENCY_STRENGTHS = [
+            { code: 'XAU', name: 'Gold', score: 88, change: '+1.42%' },
+            { code: 'GBP', name: 'Pound', score: 76, change: '+0.64%' },
+            { code: 'EUR', name: 'Euro', score: 68, change: '+0.38%' },
+            { code: 'AUD', name: 'Aussie', score: 61, change: '+0.21%' },
+            { code: 'UGX', name: 'Shilling', score: 55, change: '+0.15%' },
+            { code: 'CAD', name: 'Loonie', score: 44, change: '-0.18%' },
+            { code: 'USD', name: 'Dollar', score: 39, change: '-0.32%' },
+            { code: 'JPY', name: 'Yen', score: 27, change: '-0.79%' }
+        ];
+
+        // --- GLOBAL TERMINAL STATE ---
+        let state = {
+            activePair: 'EUR/USD',
+            timeframe: 'H1',
+            showSMC: true,
+            candles: {},       // Stores candle arrays keyed by `${pair}_${tf}`
+            signals: {},       // Stores latest AI signal object keyed by pair
+            hoveredCandle: null,
+            apiKey: localStorage.getItem('signalpulse_td_key') || '',
+            liveMode: false
+        };
+
+        // --- 2. INITIALIZATION & CANDLE DATA ENGINE ---
+        function initTerminal() {
+            try {
+                // Generate initial historical candles & AI signals for all pairs
+                Object.keys(INSTRUMENTS).forEach(pair => {
+                    ['M15', 'H1', 'H4', 'D1'].forEach(tf => {
+                        state.candles[`${pair}_${tf}`] = generateHistoricalCandles(pair, tf, 65);
+                    });
+                    state.signals[pair] = analyzePairConfluence(pair, state.timeframe);
+                });
+
+                // Check if user previously saved a Twelve Data API key
+                if (state.apiKey) {
+                    document.getElementById('twelveDataApiKeyInput').value = state.apiKey;
+                    activateLiveFeedMode();
+                }
+
+                // Render initial UI panels
+                renderWatchlist();
+                renderStrengthMatrix();
+                renderSignalFeedTable();
+                updateActivePairHeader();
+                renderAISignalPanel(state.signals[state.activePair]);
+                calculatePositionSize();
+                setupCanvasInteractions();
+                resizeAndDrawChart();
+
+                // Start UTC Clock & Real-Time Tick Simulation
+                updateUTCClock();
+                setInterval(updateUTCClock, 1000);
+                setInterval(simulateMarketTicks, 1100);
+
+                // Handle responsive resize
+                window.addEventListener('resize', resizeAndDrawChart);
+            } catch (err) {
+                console.error('Initialization error:', err);
+            }
+        }
+
+        /**
+         * Generates realistic OHLC candlestick series with institutional swing highs/lows
+         */
+        function generateHistoricalCandles(pair, tf, count) {
+            const inst = INSTRUMENTS[pair];
+            const tfMultiplier = { 'M15': 0.5, 'H1': 1.0, 'H4': 2.2, 'D1': 4.5 }[tf] || 1.0;
+            const stepVol = inst.volatility * tfMultiplier * 3.5;
+
+            let candles = [];
+            // Start slightly offset from current live price so the final candle aligns smoothly
+            let currentClose = inst.price;
+            let now = Date.now();
+            const tfMs = { 'M15': 900000, 'H1': 3600000, 'H4': 14400000, 'D1': 86400000 }[tf] || 3600000;
+
+            // Build backwards from current price so last candle matches live tick
+            for (let i = 0; i < count; i++) {
+                const close = currentClose;
+                // Add wave + random institutional impulse
+                const trendBias = Math.sin(i * 0.22) * stepVol * 0.45;
+                const change = (Math.random() - 0.49) * stepVol * 1.6 + trendBias;
+                const open = close - change;
+                const high = Math.max(open, close) + Math.random() * stepVol * 0.85;
+                const low = Math.min(open, close) - Math.random() * stepVol * 0.85;
+
+                candles.unshift({
+                    time: now - i * tfMs,
+                    open: Number(open.toFixed(inst.decimals)),
+                    high: Number(high.toFixed(inst.decimals)),
+                    low: Number(low.toFixed(inst.decimals)),
+                    close: Number(close.toFixed(inst.decimals)),
+                    volume: Math.floor(800 + Math.random() * 4200)
+                });
+
+                currentClose = open;
+            }
+            return candles;
+        }
+
+        // --- 3. SMART MONEY CONCEPTS (SMC) & AI CONFLUENCE ENGINE ---
+        function analyzePairConfluence(pair, tf) {
+            const inst = INSTRUMENTS[pair];
+            const series = state.candles[`${pair}_${tf}`] || generateHistoricalCandles(pair, tf, 65);
+            const last = series[series.length - 1];
+            const prev = series[series.length - 2];
+
+            // Compute EMA20 & EMA50
+            const closes = series.map(c => c.close);
+            const ema20 = calculateEMA(closes, 20);
+            const ema50 = calculateEMA(closes, 50);
+            const rsi = calculateRSI(closes, 14);
+
+            // Detect recent swing high & swing low (last 20 candles)
+            const recent = series.slice(-20);
+            const swingHigh = Math.max(...recent.map(c => c.high));
+            const swingLow = Math.min(...recent.map(c => c.low));
+
+            // Determine institutional directional bias
+            const isBullish = (ema20 >= ema50 && rsi < 72) || rsi <= 34;
+            const isPendingLimit = Math.abs(last.close - (isBullish ? swingLow : swingHigh)) > inst.pipSize * 12 && Math.random() > 0.45;
+
+            let action = isBullish
+                ? (isPendingLimit ? 'BUY LIMIT' : 'BUY')
+                : (isPendingLimit ? 'SELL LIMIT' : 'SELL');
+
+            // Calculate Entry Zone, SL, TP1, TP2 using ATR-like volatility structure
+            const atr = (swingHigh - swingLow) * 0.22 || inst.pipSize * 20;
+            const slDistance = Math.max(atr * 1.15, inst.pipSize * 14);
+            const slPips = Math.round(slDistance / inst.pipSize);
+
+            let entryLow, entryHigh, sl, tp1, tp2;
+
+            if (isBullish) {
+                const baseEntry = isPendingLimit ? last.close - atr * 0.35 : last.close;
+                entryLow = baseEntry - atr * 0.12;
+                entryHigh = baseEntry + atr * 0.08;
+                sl = entryLow - slDistance;
+                tp1 = entryHigh + slDistance * 1.8;
+                tp2 = entryHigh + slDistance * 3.4;
+            } else {
+                const baseEntry = isPendingLimit ? last.close + atr * 0.35 : last.close;
+                entryLow = baseEntry - atr * 0.08;
+                entryHigh = baseEntry + atr * 0.12;
+                sl = entryHigh + slDistance;
+                tp1 = entryLow - slDistance * 1.8;
+                tp2 = entryLow - slDistance * 3.4;
+            }
+
+            const tp1Pips = Math.round(Math.abs(tp1 - (isBullish ? entryHigh : entryLow)) / inst.pipSize);
+            const tp2Pips = Math.round(Math.abs(tp2 - (isBullish ? entryHigh : entryLow)) / inst.pipSize);
+            const rrRatio = (tp2Pips / slPips).toFixed(1);
+
+            // Confidence Score based on indicator alignment
+            let confidence = 78;
+            if ((isBullish && ema20 > ema50) || (!isBullish && ema20 < ema50)) confidence += 6;
+            if ((isBullish && rsi > 45 && rsi < 66) || (!isBullish && rsi < 55 && rsi > 34)) confidence += 5;
+            if (Math.abs(last.close - prev.close) > inst.volatility * 0.5) confidence += 4;
+            confidence = Math.min(96, Math.max(76, confidence));
+
+            // Institutional SMC Reasoning Bullets
+            const reasoning = isBullish ? [
+                `<strong>Bullish Break of Structure (BOS):</strong> Price displaced above internal ${tf} swing liquidity with institutional volume expansion.`,
+                `<strong>Demand Order Block (OB) & FVG:</strong> Unmitigated bullish order block resting at <span class="text-cyan-300 font-mono">${entryLow.toFixed(inst.decimals)}</span> acting as institutional sponsor zone.`,
+                `<strong>Momentum & EMA Confluence:</strong> EMA-20 (${ema20.toFixed(inst.decimals)}) holds above EMA-50 with RSI(14) at <span class="text-emerald-400 font-mono">${rsi.toFixed(1)}</span> confirming upward continuation.`
+            ] : [
+                `<strong>Bearish Change of Character (CHoCH):</strong> Buy-side liquidity swept above <span class="text-amber-300 font-mono">${swingHigh.toFixed(inst.decimals)}</span> followed by impulsive displacement lower.`,
+                `<strong>Supply Order Block Mitigation:</strong> Institutional bearish order block & Fair Value Gap identified inside <span class="text-cyan-300 font-mono">${entryLow.toFixed(inst.decimals)} - ${entryHigh.toFixed(inst.decimals)}</span>.`,
+                `<strong>Dynamic Trend Alignment:</strong> EMA-20 (${ema20.toFixed(inst.decimals)}) crossing below EMA-50; RSI(14) at <span class="text-rose-400 font-mono">${rsi.toFixed(1)}</span> favors downside expansion.`
+            ];
+
+            return {
+                pair,
+                tf,
+                isBullish,
+                action,
+                entryLow: entryLow.toFixed(inst.decimals),
+                entryHigh: entryHigh.toFixed(inst.decimals),
+                sl: sl.toFixed(inst.decimals),
+                tp1: tp1.toFixed(inst.decimals),
+                tp2: tp2.toFixed(inst.decimals),
+                slPips,
+                tp1Pips,
+                tp2Pips,
+                rrRatio,
+                confidence,
+                rsi: rsi.toFixed(1),
+                ema20,
+                ema50,
+                swingHigh,
+                swingLow,
+                reasoning,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            };
+        }
+
+        function calculateEMA(prices, period) {
+            if (!prices.length) return 0;
+            const k = 2 / (period + 1);
+            let ema = prices[0];
+            for (let i = 1; i < prices.length; i++) {
+                ema = prices[i] * k + ema * (1 - k);
+            }
+            return ema;
+        }
+
+        function calculateRSI(prices, period = 14) {
+            if (prices.length <= period) return 50;
+            let gains = 0, losses = 0;
+            for (let i = prices.length - period; i < prices.length; i++) {
+                const diff = prices[i] - prices[i - 1];
+                if (diff >= 0) gains += diff;
+                else losses -= diff;
+            }
+            if (losses === 0) return 85;
+            const rs = (gains / period) / (losses / period);
+            return 100 - (100 / (1 + rs));
+        }
+
+        // --- 4. LIVE MARKET TICK SIMULATOR & OPTIONAL TWELVE DATA API ---
+        function simulateMarketTicks() {
+            Object.keys(INSTRUMENTS).forEach(pair => {
+                const inst = INSTRUMENTS[pair];
+                const delta = (Math.random() - 0.495) * inst.volatility;
+                const oldPrice = inst.price;
+                const newPrice = Number((oldPrice + delta).toFixed(inst.decimals));
+                inst.price = newPrice;
+
+                // Update latest candle in all timeframes for this pair
+                ['M15', 'H1', 'H4', 'D1'].forEach(tf => {
+                    const arr = state.candles[`${pair}_${tf}`];
+                    if (arr && arr.length > 0) {
+                        const lastCandle = arr[arr.length - 1];
+                        lastCandle.close = newPrice;
+                        if (newPrice > lastCandle.high) lastCandle.high = newPrice;
+                        if (newPrice < lastCandle.low) lastCandle.low = newPrice;
+                    }
+                });
+
+                // Flash Watchlist Row
+                const rowEl = document.getElementById(`watch-row-${pair.replace('/', '-')}`);
+                const priceEl = document.getElementById(`watch-price-${pair.replace('/', '-')}`);
+                if (priceEl && rowEl) {
+                    priceEl.textContent = newPrice.toFixed(inst.decimals);
+                    const isUp = newPrice >= oldPrice;
+                    priceEl.className = `font-mono text-xs font-bold ${isUp ? 'text-emerald-400' : 'text-rose-400'}`;
+                    rowEl.classList.remove('tick-up', 'tick-down');
+                    void rowEl.offsetWidth; // trigger reflow
+                    rowEl.classList.add(isUp ? 'tick-up' : 'tick-down');
+                }
+            });
+
+            // Update active pair header & redraw chart
+            updateActivePairHeader();
+            drawChart();
+        }
+
+        async function fetchTwelveDataQuote(pair) {
+            if (!state.apiKey) return;
+            try {
+                const res = await fetch(`https://api.twelvedata.com/price?symbol=${pair}&apikey=${state.apiKey}`);
+                const data = await res.json();
+                if (data && data.price) {
+                    const inst = INSTRUMENTS[pair];
+                    inst.price = Number(parseFloat(data.price).toFixed(inst.decimals));
+                    updateActivePairHeader();
+                    drawChart();
+                }
+            } catch (e) {
+                console.warn('Twelve Data fetch fallback to simulator:', e);
+            }
+        }
+
+        // --- 5. HIGH-DPI HTML5 CANVAS CANDLESTICK CHART RENDERER ---
+        function resizeAndDrawChart() {
+            const container = document.getElementById('chartContainer');
+            const canvas = document.getElementById('tradingChart');
+            if (!container || !canvas) return;
+
+            const dpr = window.devicePixelRatio || 1;
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            drawChart();
+        }
+
+        function drawChart() {
+            const container = document.getElementById('chartContainer');
+            const canvas = document.getElementById('tradingChart');
+            if (!container || !canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Clear Canvas Background
+            ctx.fillStyle = '#090d14';
+            ctx.fillRect(0, 0, width, height);
+
+            const pair = state.activePair;
+            const tf = state.timeframe;
+            const inst = INSTRUMENTS[pair];
+            const candles = state.candles[`${pair}_${tf}`] || [];
+            const signal = state.signals[pair];
+
+            if (!candles.length) return;
+
+            // Layout Padding
+            const padTop = 36;
+            const padBottom = 26;
+            const padLeft = 12;
+            const padRight = 68;
+            const chartW = width - padLeft - padRight;
+            const chartH = height - padTop - padBottom;
+
+            // Calculate Min & Max Price including SL/TP levels if SMC is enabled
+            let minPrice = Math.min(...candles.map(c => c.low));
+            let maxPrice = Math.max(...candles.map(c => c.high));
+
+            if (state.showSMC && signal) {
+                minPrice = Math.min(minPrice, parseFloat(signal.sl), parseFloat(signal.tp1));
+                maxPrice = Math.max(maxPrice, parseFloat(signal.sl), parseFloat(signal.tp1));
+            }
+
+            const priceMargin = (maxPrice - minPrice) * 0.08;
+            minPrice -= priceMargin;
+            maxPrice += priceMargin;
+            const priceRange = maxPrice - minPrice || 0.0001;
+
+            const priceToY = (p) => padTop + chartH - ((p - minPrice) / priceRange) * chartH;
+            const indexToX = (i) => padLeft + (i + 0.5) * (chartW / candles.length);
+
+            // Draw Subtle Institutional Grid Lines & Price Axis
+            ctx.strokeStyle = '#151d2b';
+            ctx.lineWidth = 1;
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.fillStyle = '#64748b';
+            ctx.textAlign = 'left';
+
+            const gridRows = 6;
+            for (let r = 0; r <= gridRows; r++) {
+                const y = padTop + (chartH / gridRows) * r;
+                const priceVal = maxPrice - (priceRange / gridRows) * r;
+                ctx.beginPath();
+                ctx.moveTo(padLeft, y);
+                ctx.lineTo(width - padRight, y);
+                ctx.stroke();
+
+                ctx.fillText(priceVal.toFixed(inst.decimals), width - padRight + 6, y + 3);
+            }
+
+            // Draw Smart Money Concepts (SMC) Order Block Zone & Signal Levels
+            if (state.showSMC && signal) {
+                const entryTopY = priceToY(parseFloat(signal.entryHigh));
+                const entryBotY = priceToY(parseFloat(signal.entryLow));
+                const zoneHeight = Math.max(8, Math.abs(entryBotY - entryTopY));
+                const zoneTop = Math.min(entryTopY, entryBotY);
+
+                // Shaded Order Block Box
+                ctx.fillStyle = signal.isBullish ? 'rgba(0, 230, 118, 0.12)' : 'rgba(255, 61, 113, 0.12)';
+                ctx.fillRect(padLeft, zoneTop, chartW, zoneHeight);
+
+                ctx.strokeStyle = signal.isBullish ? 'rgba(0, 230, 118, 0.45)' : 'rgba(255, 61, 113, 0.45)';
+                ctx.setLineDash([4, 4]);
+                ctx.strokeRect(padLeft, zoneTop, chartW, zoneHeight);
+                ctx.setLineDash([]);
+
+                // Label for Order Block
+                ctx.fillStyle = signal.isBullish ? '#00e676' : '#ff3d71';
+                ctx.font = 'bold 9px "JetBrains Mono", monospace';
+                ctx.fillText(signal.isBullish ? 'SMC DEMAND OB' : 'SMC SUPPLY OB', padLeft + 8, zoneTop - 4);
+
+                // Draw Stop Loss Line
+                const slY = priceToY(parseFloat(signal.sl));
+                drawHorizontalLevel(ctx, padLeft, width - padRight, slY, '#ff3d71', `SL ${signal.sl}`);
+
+                // Draw Take Profit 1 Line
+                const tp1Y = priceToY(parseFloat(signal.tp1));
+                drawHorizontalLevel(ctx, padLeft, width - padRight, tp1Y, '#00e676', `TP1 ${signal.tp1}`);
+            }
+
+            // Compute & Draw EMA 20 and EMA 50 Curves
+            drawEMALine(ctx, candles, 20, '#00e5ff', indexToX, priceToY);
+            drawEMALine(ctx, candles, 50, '#ffab00', indexToX, priceToY);
+
+            // Draw Candlesticks
+            const candleSpacing = chartW / candles.length;
+            const bodyWidth = Math.max(3, Math.min(12, candleSpacing * 0.65));
+
+            candles.forEach((c, idx) => {
+                const x = indexToX(idx);
+                const yOpen = priceToY(c.open);
+                const yClose = priceToY(c.close);
+                const yHigh = priceToY(c.high);
+                const yLow = priceToY(c.low);
+                const isBull = c.close >= c.open;
+
+                const color = isBull ? '#00e676' : '#ff3d71';
+                ctx.strokeStyle = color;
+                ctx.fillStyle = color;
+                ctx.lineWidth = 1.2;
+
+                // Wick
+                ctx.beginPath();
+                ctx.moveTo(x, yHigh);
+                ctx.lineTo(x, yLow);
+                ctx.stroke();
+
+                // Body
+                const bodyTop = Math.min(yOpen, yClose);
+                const bodyH = Math.max(1.5, Math.abs(yClose - yOpen));
+                ctx.fillRect(x - bodyWidth / 2, bodyTop, bodyWidth, bodyH);
+            });
+
+            // Draw Live Current Price Pill on Right Axis
+            const liveY = priceToY(inst.price);
+            ctx.strokeStyle = '#00e5ff';
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.moveTo(padLeft, liveY);
+            ctx.lineTo(width - padRight, liveY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#00e5ff';
+            ctx.fillRect(width - padRight + 2, liveY - 9, padRight - 4, 18);
+            ctx.fillStyle = '#080b11';
+            ctx.font = 'bold 10px "JetBrains Mono", monospace';
+            ctx.fillText(inst.price.toFixed(inst.decimals), width - padRight + 6, liveY + 3.5);
+
+            // Update OHLC Legend (either hovered candle or latest candle)
+            const displayCandle = state.hoveredCandle || candles[candles.length - 1];
+            document.getElementById('legO').textContent = displayCandle.open.toFixed(inst.decimals);
+            document.getElementById('legH').textContent = displayCandle.high.toFixed(inst.decimals);
+            document.getElementById('legL').textContent = displayCandle.low.toFixed(inst.decimals);
+            document.getElementById('legC').textContent = displayCandle.close.toFixed(inst.decimals);
+        }
+
+        function drawHorizontalLevel(ctx, x1, x2, y, color, label) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 3]);
+            ctx.beginPath();
+            ctx.moveTo(x1, y);
+            ctx.lineTo(x2, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = color;
+            ctx.font = 'bold 9px "JetBrains Mono", monospace';
+            ctx.fillText(label, x2 - 74, y - 3);
+        }
+
+        function drawEMALine(ctx, candles, period, color, indexToX, priceToY) {
+            const k = 2 / (period + 1);
+            let ema = candles[0].close;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+
+            candles.forEach((c, idx) => {
+                ema = c.close * k + ema * (1 - k);
+                const x = indexToX(idx);
+                const y = priceToY(ema);
+                if (idx === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        function setupCanvasInteractions() {
+            const canvas = document.getElementById('tradingChart');
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const candles = state.candles[`${state.activePair}_${state.timeframe}`] || [];
+                const chartW = rect.width - 80;
+                const idx = Math.floor(((mouseX - 12) / chartW) * candles.length);
+                if (idx >= 0 && idx < candles.length) {
+                    state.hoveredCandle = candles[idx];
+                    drawChart();
+                }
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                state.hoveredCandle = null;
+                drawChart();
+            });
+        }
+
+        // --- 6. UI RENDERERS & INTERACTIVE CONTROLS ---
+        function renderWatchlist() {
+            const container = document.getElementById('watchlistContainer');
+            container.innerHTML = Object.keys(INSTRUMENTS).map(pair => {
+                const inst = INSTRUMENTS[pair];
+                const sig = state.signals[pair];
+                const isSelected = pair === state.activePair;
+                const isPos = inst.dailyChange >= 0;
+                const safeId = pair.replace('/', '-');
+
+                return `
+                    <div id="watch-row-${safeId}" onclick="selectPair('${pair}')" 
+                        class="px-3.5 py-2.5 cursor-pointer transition flex items-center justify-between ${isSelected ? 'bg-cyan-500/10 border-l-2 border-l-cyan-400' : 'hover:bg-terminal-hover'}">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono font-bold text-xs text-white">${pair}</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.2 rounded ${sig.isBullish ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}">
+                                    ${sig.action}
+                                </span>
+                            </div>
+                            <span class="text-[10px] text-slate-400 block mt-0.5">${inst.name}</span>
+                        </div>
+                        <div class="text-right">
+                            <span id="watch-price-${safeId}" class="font-mono text-xs font-bold ${isPos ? 'text-emerald-400' : 'text-rose-400'}">
+                                ${inst.price.toFixed(inst.decimals)}
+                            </span>
+                            <span class="block text-[10px] font-mono ${isPos ? 'text-emerald-500' : 'text-rose-500'}">
+                                ${isPos ? '+' : ''}${inst.dailyChange.toFixed(2)}%
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderStrengthMatrix() {
+            const container = document.getElementById('strengthMatrix');
+            container.innerHTML = CURRENCY_STRENGTHS.map(c => {
+                const barColor = c.score >= 70 ? 'bg-emerald-400' : (c.score >= 50 ? 'bg-cyan-400' : 'bg-rose-400');
+                return `
+                    <div class="flex items-center gap-2 text-xs font-mono">
+                        <span class="w-8 font-bold text-slate-200">${c.code}</span>
+                        <div class="flex-1 h-2 bg-terminal-card rounded-full overflow-hidden">
+                            <div class="${barColor} h-full rounded-full" style="width: ${c.score}%"></div>
+                        </div>
+                        <span class="w-12 text-right text-[11px] ${c.score >= 50 ? 'text-emerald-400' : 'text-rose-400'}">${c.change}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderSignalFeedTable() {
+            const tbody = document.getElementById('signalFeedBody');
+            tbody.innerHTML = Object.keys(INSTRUMENTS).map(pair => {
+                const sig = state.signals[pair];
+                const badgeClass = sig.isBullish
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    : 'bg-rose-500/15 text-rose-400 border-rose-500/30';
+
+                return `
+                    <tr onclick="selectPair('${pair}')" class="hover:bg-terminal-hover/80 cursor-pointer transition">
+                        <td class="py-2.5 px-3">
+                            <span class="font-bold text-white block">${pair}</span>
+                            <span class="text-[10px] text-slate-400">${sig.tf} • ${sig.timestamp}</span>
+                        </td>
+                        <td class="py-2.5 px-3">
+                            <span class="px-2 py-0.5 rounded border text-[10px] font-bold ${badgeClass}">
+                                ${sig.action}
+                            </span>
+                        </td>
+                        <td class="py-2.5 px-3 text-slate-200">
+                            ${sig.entryLow}
+                        </td>
+                        <td class="py-2.5 px-3">
+                            <span class="text-rose-400 block text-[11px]">SL: ${sig.sl}</span>
+                            <span class="text-emerald-400 block text-[11px]">TP: ${sig.tp1}</span>
+                        </td>
+                        <td class="py-2.5 px-3">
+                            <span class="font-bold ${sig.confidence >= 85 ? 'text-cyan-400' : 'text-amber-400'}">${sig.confidence}%</span>
+                        </td>
+                        <td class="py-2.5 px-3 text-right">
+                            <button onclick="event.stopPropagation(); copySpecificSignal('${pair}')" 
+                                class="px-2.5 py-1 rounded bg-terminal-card hover:bg-cyan-500 hover:text-slate-950 border border-terminal-border text-cyan-400 text-[10px] font-semibold transition">
+                                Copy
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderAISignalPanel(sig) {
+            if (!sig) return;
+
+            document.getElementById('aiTimestamp').textContent = `Scanned at ${sig.timestamp}`;
+            document.getElementById('aiTimeframeBadge').textContent = sig.tf;
+            document.getElementById('aiSignalAction').textContent = sig.action;
+            document.getElementById('aiSignalPair').textContent = sig.pair;
+            document.getElementById('aiConfidenceScore').textContent = `${sig.confidence}%`;
+            document.getElementById('aiConfidenceBar').style.width = `${sig.confidence}%`;
+
+            // Color theming based on Bullish / Bearish
+            const banner = document.getElementById('aiActionBanner');
+            const actionText = document.getElementById('aiSignalAction');
+            const confText = document.getElementById('aiConfidenceScore');
+            const topGlow = document.getElementById('aiCardTopGlow');
+
+            if (sig.isBullish) {
+                banner.className = 'p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between';
+                actionText.className = 'text-xl font-black tracking-tight text-emerald-400';
+                confText.className = 'text-xl font-mono font-extrabold text-emerald-400';
+                topGlow.className = 'absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500';
+            } else {
+                banner.className = 'p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between';
+                actionText.className = 'text-xl font-black tracking-tight text-rose-400';
+                confText.className = 'text-xl font-mono font-extrabold text-rose-400';
+                topGlow.className = 'absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 via-amber-500 to-purple-500';
+            }
+
+            document.getElementById('aiEntryZone').textContent = `${sig.entryLow} - ${sig.entryHigh}`;
+            document.getElementById('aiStopLoss').textContent = sig.sl;
+            document.getElementById('aiSLPips').textContent = `-${sig.slPips} pips`;
+            document.getElementById('aiTP1').textContent = sig.tp1;
+            document.getElementById('aiTP1Pips').textContent = `+${sig.tp1Pips} pips (1:1.8)`;
+            document.getElementById('aiTP2').textContent = sig.tp2;
+            document.getElementById('aiTP2Pips').textContent = `+${sig.tp2Pips} pips (1:${sig.rrRatio})`;
+            document.getElementById('aiRiskReward').textContent = `1 : ${sig.rrRatio}`;
+            document.getElementById('aiSetupGrade').textContent = sig.confidence >= 87 ? 'A+ INSTITUTIONAL' : 'A HIGH PROB';
+
+            // Update Indicator Strip below chart
+            document.getElementById('indRSI').textContent = sig.rsi;
+            document.getElementById('indStructure').textContent = sig.isBullish ? 'BULLISH BOS' : 'BEARISH CHoCH';
+            document.getElementById('indStructure').className = `font-bold ${sig.isBullish ? 'text-emerald-400' : 'text-rose-400'}`;
+            document.getElementById('indEMA').textContent = sig.ema20 >= sig.ema50 ? 'BULLISH (20>50)' : 'BEARISH (20<50)';
+            document.getElementById('indEMA').className = `font-bold ${sig.ema20 >= sig.ema50 ? 'text-emerald-400' : 'text-rose-400'}`;
+            document.getElementById('indLiquidity').textContent = sig.isBullish ? 'SSL SWEPT' : 'BSL SWEPT';
+
+            // Reasoning Bullets
+            const list = document.getElementById('aiReasoningList');
+            list.innerHTML = sig.reasoning.map(item => `
+                <li class="flex items-start gap-2">
+                    <i class="fa-solid fa-angle-right text-cyan-400 mt-1 shrink-0"></i>
+                    <span>${item}</span>
+                </li>
+            `).join('');
+        }
+
+        function updateActivePairHeader() {
+            const pair = state.activePair;
+            const inst = INSTRUMENTS[pair];
+            const isPos = inst.dailyChange >= 0;
+
+            document.getElementById('chartPairTitle').textContent = pair;
+            document.getElementById('chartPairName').textContent = inst.name;
+            const priceEl = document.getElementById('chartLivePrice');
+            priceEl.textContent = inst.price.toFixed(inst.decimals);
+            priceEl.className = `text-sm font-mono font-bold ${isPos ? 'text-emerald-400' : 'text-rose-400'}`;
+
+            const chgEl = document.getElementById('chartPriceChange');
+            chgEl.textContent = `${isPos ? '+' : ''}${inst.dailyChange.toFixed(2)}%`;
+            chgEl.className = `text-xs font-mono ${isPos ? 'text-emerald-400' : 'text-rose-400'}`;
+            document.getElementById('chartSpread').textContent = inst.spread;
+        }
+
+        // --- 7. USER ACTIONS & EVENT HANDLERS ---
+        function selectPair(pair) {
+            state.activePair = pair;
+            renderWatchlist();
+            updateActivePairHeader();
+            renderAISignalPanel(state.signals[pair]);
+            syncCalcWithActiveSignal();
+            drawChart();
+            if (state.liveMode) fetchTwelveDataQuote(pair);
+        }
+
+        function setTimeframe(tf) {
+            state.timeframe = tf;
+            document.querySelectorAll('.tf-btn').forEach(btn => {
+                if (btn.dataset.tf === tf) {
+                    btn.className = 'tf-btn px-2.5 py-1 rounded text-xs font-mono font-semibold bg-cyan-500 text-slate-950 transition';
+                } else {
+                    btn.className = 'tf-btn px-2.5 py-1 rounded text-xs font-mono font-semibold text-slate-400 hover:text-white transition';
+                }
+            });
+
+            // Re-run AI confluence for the new timeframe
+            state.signals[state.activePair] = analyzePairConfluence(state.activePair, tf);
+            renderAISignalPanel(state.signals[state.activePair]);
+            renderSignalFeedTable();
+            drawChart();
+        }
+
+        function toggleSMCOverlays() {
+            state.showSMC = !state.showSMC;
+            const btn = document.getElementById('smcToggleBtn');
+            if (state.showSMC) {
+                btn.className = 'px-2.5 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-xs font-medium flex items-center gap-1.5 transition';
+            } else {
+                btn.className = 'px-2.5 py-1.5 rounded-lg bg-terminal-card border border-terminal-border text-slate-400 text-xs font-medium flex items-center gap-1.5 transition';
+            }
+            drawChart();
+        }
+
+        function triggerDeepAIScan() {
+            const overlay = document.getElementById('chartScanOverlay');
+            overlay.classList.remove('hidden');
+
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                state.signals[state.activePair] = analyzePairConfluence(state.activePair, state.timeframe);
+                renderAISignalPanel(state.signals[state.activePair]);
+                renderWatchlist();
+                renderSignalFeedTable();
+                syncCalcWithActiveSignal();
+                drawChart();
+                showToast(`AI Confluence Scan complete for ${state.activePair} (${state.timeframe})`, 'success');
+            }, 950);
+        }
+
+        function scanAllPairs() {
+            const overlay = document.getElementById('chartScanOverlay');
+            overlay.classList.remove('hidden');
+
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                Object.keys(INSTRUMENTS).forEach(pair => {
+                    state.signals[pair] = analyzePairConfluence(pair, state.timeframe);
+                });
+                renderAISignalPanel(state.signals[state.activePair]);
+                renderWatchlist();
+                renderSignalFeedTable();
+                drawChart();
+                showToast('All 7 currency pairs rescanned for fresh SMC setups!', 'success');
+            }, 1100);
+        }
+
+        // --- 8. POSITION SIZE CALCULATOR ---
+        function calculatePositionSize() {
+            const balance = parseFloat(document.getElementById('calcBalance').value) || 0;
+            const riskPct = parseFloat(document.getElementById('calcRiskPercent').value) || 0;
+            const slPips = parseFloat(document.getElementById('calcStopPips').value) || 1;
+            const inst = INSTRUMENTS[state.activePair];
+
+            const dollarRisk = balance * (riskPct / 100);
+            const lotSize = dollarRisk / (slPips * inst.pipValuePerLot);
+
+            document.getElementById('calcDollarRisk').textContent = `$${dollarRisk.toFixed(2)}`;
+            document.getElementById('calcLotResult').textContent = `${Math.max(0.01, lotSize).toFixed(2)} Lots`;
+        }
+
+        function syncCalcWithActiveSignal() {
+            const sig = state.signals[state.activePair];
+            if (sig && sig.slPips) {
+                document.getElementById('calcStopPips').value = sig.slPips;
+                calculatePositionSize();
+            }
+        }
+
+        // --- 9. CLIPBOARD COPY (IFRAME-SAFE EXEC-COMMAND) ---
+        function copyActiveSignalSetup() {
+            copySpecificSignal(state.activePair);
+        }
+
+        function copySpecificSignal(pair) {
+            const sig = state.signals[pair];
+            if (!sig) return;
+
+            const formattedText = [
+                `⚡ SIGNALPULSE AI — INSTITUTIONAL SETUP ⚡`,
+                `Pair: ${sig.pair} (${sig.tf})`,
+                `Action: ${sig.action} (${sig.confidence}% AI Confidence)`,
+                `Entry Zone: ${sig.entryLow} - ${sig.entryHigh}`,
+                `Stop Loss (SL): ${sig.sl} (-${sig.slPips} pips)`,
+                `Take Profit 1: ${sig.tp1} (+${sig.tp1Pips} pips)`,
+                `Take Profit 2: ${sig.tp2} (+${sig.tp2Pips} pips)`,
+                `Risk:Reward: 1:${sig.rrRatio}`
+            ].join('\n');
+
+            // Reliable iframe clipboard copy using temporary textarea + execCommand
+            const tempInput = document.createElement('textarea');
+            tempInput.value = formattedText;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            try {
+                document.execCommand('copy');
+                showToast(`Copied ${pair} ${sig.action} setup to clipboard!`, 'success');
+            } catch (err) {
+                showToast('Unable to copy setup automatically.', 'error');
+            }
+            document.body.removeChild(tempInput);
+        }
+
+        // --- 10. SETTINGS MODAL & LIVE API CONNECTION ---
+        function openSettingsModal() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function saveApiSettings() {
+            const key = document.getElementById('twelveDataApiKeyInput').value.trim();
+            if (!key) {
+                showToast('Please enter a valid API key or select Simulator mode.', 'warn');
+                return;
+            }
+            state.apiKey = key;
+            localStorage.setItem('signalpulse_td_key', key);
+            activateLiveFeedMode();
+            closeSettingsModal();
+            fetchTwelveDataQuote(state.activePair);
+            showToast('Twelve Data API key saved! Attempting live quote sync.', 'success');
+        }
+
+        function activateLiveFeedMode() {
+            state.liveMode = true;
+            const badge = document.getElementById('feedStatusBadge');
+            badge.className = 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono text-[11px] ml-1';
+            badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> LIVE API CONNECTED';
+            document.getElementById('modalCurrentModeText').textContent = 'Twelve Data Live API Stream';
+        }
+
+        function resetToSimulatedFeed() {
+            state.apiKey = '';
+            state.liveMode = false;
+            localStorage.removeItem('signalpulse_td_key');
+            document.getElementById('twelveDataApiKeyInput').value = '';
+            const badge = document.getElementById('feedStatusBadge');
+            badge.className = 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono text-[11px] ml-1';
+            badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span> SIMULATED LIVE TICKS ACTIVE';
+            document.getElementById('modalCurrentModeText').textContent = 'Simulated Institutional Stream';
+            closeSettingsModal();
+            showToast('Switched back to Simulated Institutional Tick Stream.', 'success');
+        }
+
+        // --- 11. UTILITIES (CLOCK & TOASTS) ---
+        function updateUTCClock() {
+            const now = new Date();
+            document.getElementById('utcClock').textContent = now.toUTCString().split(' ')[4] + ' UTC';
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const borderClass = type === 'success' ? 'border-emerald-500/50 text-emerald-300' : 'border-amber-500/50 text-amber-300';
+            toast.className = `bg-terminal-panel border ${borderClass} px-4 py-2.5 rounded-xl shadow-2xl text-xs font-medium flex items-center gap-2 backdrop-blur-md transition-all duration-300`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check text-emerald-400' : 'fa-circle-info text-amber-400'}"></i><span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        // Start Application on Window Load
+        window.onload = initTerminal;
+    </script>
+</body>
+</html>
